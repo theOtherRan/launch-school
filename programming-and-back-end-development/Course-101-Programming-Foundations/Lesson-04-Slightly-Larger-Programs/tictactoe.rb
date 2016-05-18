@@ -13,8 +13,9 @@ def prompt(msg)
 end
 
 # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
-def display_board(board)
+def display_board(board,round)
   system 'clear'
+  prompt "--------------------Round #{round}--------------------"
   puts "You're a #{PLAYER_MARKER}. Computer is a #{COMPUTER_MARKER}."
   puts ""
   puts "     |     |"
@@ -38,6 +39,10 @@ def initialize_board
   new_board
 end
 
+def joinor(board, char=', ', conj='or')
+  board.join(char).insert(-2, conj + " ")
+end
+
 def empty_squares(board)
   board.keys.select { |num| board[num] == INITIAL_MARKER }
 end
@@ -45,7 +50,7 @@ end
 def player_places_piece!(board)
   square = ''
   loop do
-    prompt "Choose a square (#{empty_squares(board).join(', ')}):"
+    prompt "Choose a position to place a piece: #{joinor(empty_squares(board), ', ')}"
     square = gets.chomp.to_i
     break if empty_squares(board).include?(square)
     prompt "Sorry, that's not a valid choice."
@@ -54,7 +59,27 @@ def player_places_piece!(board)
 end
 
 def computer_places_piece!(board)
+  square = nil
+
+  # offense first
+  WINNING_LINES.each do |line|
+    square = find_at_risk_square(line, board, COMPUTER_MARKER)
+    break if square
+  end
+
+  # defense
+  if !square
+    WINNING_LINES.each do |line|
+    square = find_at_risk_square(line, board, PLAYER_MARKER)
+    break if square
+    end
+  end
+
+  # just pick a square
+  if !square
   square = empty_squares(board).sample
+  end
+
   board[square] = COMPUTER_MARKER
 end
 
@@ -77,30 +102,75 @@ def detect_winner(board)
   nil
 end
 
-loop do
-  board = initialize_board
-
-  loop do
-    display_board(board)
-
-    player_places_piece!(board)
-    break if someone_won?(board) || board_full?(board)
-
-    computer_places_piece!(board)
-    break if someone_won?(board) || board_full?(board)
-  end
-
-  display_board(board)
-
-  if someone_won?(board)
-    prompt "#{detect_winner(board)} won!"
+def find_at_risk_square(line, board, marker)
+  if board.values_at(*line).count(marker) == 2
+    board.select{|k,v| line.include?(k) && v == INITIAL_MARKER}.keys.first
   else
-    prompt "It's a tie!"
+    nil
+  end
+end
+
+def display_results(user_wins, computer_wins)
+  if user_wins > computer_wins
+    prompt("You won the game!")
+  else
+    prompt("Computer won the game!")
+  end
+end
+
+def valid_answer?(answer)
+  answer.downcase == 'y' || answer.downcase == 'n'
+end
+
+loop do # main loop
+  user_wins = 0
+  comp_wins = 0
+  winner_found = false
+  round = 1
+
+  until winner_found == true
+    board = initialize_board
+
+    loop do
+      display_board(board, round)
+
+      player_places_piece!(board)
+      break if someone_won?(board) || board_full?(board)
+
+      computer_places_piece!(board)
+      break if someone_won?(board) || board_full?(board)
+    end
+
+    display_board(board, round)
+
+    if someone_won?(board) && detect_winner(board) == 'Player'
+      prompt "#{detect_winner(board)} won this round!"
+      user_wins += 1
+    elsif someone_won?(board) && detect_winner(board) == 'Computer'
+      prompt "#{detect_winner(board)} won this round!"
+      comp_wins += 1
+    else
+      prompt "It's a tie!"
+    end
+
+    prompt "Current Score is User: #{user_wins} || Computer: #{comp_wins}"
+    prompt "Press enter to continue... "
+    Kernel.gets # pause the screen
+
+    round += 1
+    winner_found = true if user_wins == 5 || comp_wins == 5
   end
 
-  prompt "Play again? Y or N"
-  answer = gets.chomp
-  break unless answer.downcase.start_with?('y')
+  display_results(user_wins, comp_wins)
+
+  answer = ''
+  loop do
+    prompt "Do you want to play again? Enter Y or N"
+    answer = gets.chomp
+    break if valid_answer?(answer)
+  end
+
+  break unless answer.downcase == 'y'
 end
 
 prompt "Thanks for playing Tic Tac Toe! Goodbye!"
