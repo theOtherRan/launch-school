@@ -75,6 +75,11 @@ def computer_places_piece!(board)
     end
   end
 
+  # pick square 5 if available
+  if !square
+    square = 5 if empty_squares(board).include?(5)
+  end
+
   # just pick a square
   if !square
   square = empty_squares(board).sample
@@ -100,6 +105,18 @@ def detect_winner(board)
     end
   end
   nil
+end
+
+def place_piece!(board, current_player)
+  if current_player == 'Player'
+    player_places_piece!(board)
+  elsif current_player == 'Computer'
+    computer_places_piece!(board)
+  end
+end
+
+def alternate_player(current_player)
+  current_player == 'Player' ? 'Computer' : 'Player'
 end
 
 def find_at_risk_square(line, board, marker)
@@ -131,13 +148,25 @@ loop do # main loop
   until winner_found == true
     board = initialize_board
 
+    who_plays_first = ''
+    loop do
+        prompt "Do you want to play first? Enter Y or N"
+        who_plays_first = gets.chomp
+        break if valid_answer?(who_plays_first)
+        prompt "Please type Y or N."
+    end
+
+    first_player = if who_plays_first.start_with?('y')
+                      'Player'
+                   else
+                      'Computer'
+                   end
+    current_player = first_player
+
     loop do
       display_board(board, round)
-
-      player_places_piece!(board)
-      break if someone_won?(board) || board_full?(board)
-
-      computer_places_piece!(board)
+      place_piece!(board, current_player)
+      current_player = alternate_player(current_player)
       break if someone_won?(board) || board_full?(board)
     end
 
